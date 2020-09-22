@@ -1,0 +1,256 @@
+---
+title: "HW1_SimMod"
+author: "Hannah Jones"
+date: "9/15/2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1
+A simulation of a Taco Bell restaurant was performed to compare two different queueing systems. Each system was replicated 12 times. As output from the first system, the average simulated customer time in system, or sojourn time (in minutes) for each replication was:
+
+$D_1 = \{5, 8, 7, 4, 5, 12, 14, 3, 10, 10, 2, 4\}$
+$D_1 = \{10, 6, 10, 13, 10, 4, 2, 13, 6, 5, 13, 12\}$
+
+Use hypothesis testing to see if the difference between the systems is statistically signifigant. Return all of your calculations and report and interpret the test's p-value, both its magnitude and the conclusion of the test. 
+
+### Hypothesis Test
+
+\text{Average times from system 1 are equal to system 2}  $H_o: \mu_1 = \mu_2$  \
+\text{Average times from system 1 are NOT equal to system 2 }  $H_1: \mu_1 \ne \mu_2$ \ 
+
+``` {r TacoBell}
+
+# load average waiting times
+d1 = c(5, 8, 7, 4, 5, 12, 14, 3, 10, 10, 2, 4)
+d2 = c(10, 6, 10, 13, 10, 4, 2, 13, 6, 5, 13, 12)
+
+se = sqrt(var(d1)/length(d1)+var(d2)/length(d2))
+t = (mean(d1)-mean(d2))/se
+se
+t
+df = length(d1)+length(d2)-2
+print(paste("The pvalue is:",round(2*pt(t,df),2)))
+
+#alternative way
+t.test(d1,d2,var=TRUE)
+```
+Pvalue is small `.3`, which means we fail to regect the null - thus there is not a statistically signifigant difference between the two systems. \
+
+## Problem 2 \
+The thief of Baghdad is trying to escape from a circular dungeon. There are three identical doors that he may choose from. The first door leads to a tunnel that takes 5 minutes to traverse and returns him to the dungeon. The second door leads to a tunnel that takes 12 minutes to traverse and also returns him to the dungeon. The third door leads to a tunnel that takes 8 minutes to traverse and leads to freedom (so that he can save the princess). The thief is a Markov thief in the sense that he can’t mark a door previously chosen. A Markov custodian will remove any marks while he is traversing tunnels.
+
+(a)	Find the expected time for the thief to escape.
+
+    Hint: use conditional expectation.
+
+$$
+\begin{align*}
+E[\text{Time to escape}] & = E[T|D1]\,P(D1) + E[T|D2]\,P(D2) +\,\, ... \\
+& = (5 + E[T])\frac{1}{3}+(12 +E[T])\frac{1}{3} + 8\,\frac{1}{3} \\ 
+& = \frac{5}{3}+\frac{12}{3}+\frac{8}{3}+\frac{1}{3}\,E[T] \\
+E[\text{Time to escape}] & = 25
+\end{align*}
+$$
+
+```{r BaghdadThief}
+#(b)	Write an R program that estimates the expected time to escape for the thief 
+#     of Baghdad in order to verify your solution to part (a). Estimate the 
+#     expected time to escape by averaging the escape times for 1000 thieves.
+
+nrep = 1000
+time = 0
+
+for (i in 1:nrep){
+  count = 0
+  stuck = TRUE
+while(stuck){
+  x <- sample(c(1,2,3),1)
+  if (x == 1) count = count + 12
+  else if (x == 2) count = count + 5
+  else {count = count + 8; stuck = FALSE}} 
+  time[i] = count}
+
+mean(time)
+```
+## Problem 3  \
+Emma must pass 40 classes before she can graduate. She may take as many classes as many times as desired until the required 40 classes are passed. Any time Emma takes a course, there is a 90% chance of passing. Let X be the number of courses Emma must take until forty are passed. \
+
+(a)	What is the probability mass function of X? \
+$r = 40$ \
+prob = .9 \
+
+Emma's problem follows a negative binomal distribution with $p = 0.9$. 
+$$
+f(x) = {x-1\\r-1\choose}\,p^r\,(1-p)^{x-r}
+$$
+\ (b) What is the expected number of courses that Emma must take before passing forty?
+```{r, echo=FALSE, include=TRUE}
+40/.9
+```
+$$
+\begin{align*} 
+E[X] = \mu & = \frac{r}{p} \\
+& = \frac{40}{.9} \\
+E[X]  & = 44.44
+\end{align*}
+$$
+(c)	Write an R program that simulates 10,000 students like Emma. Estimate the mean number of courses a student must take to pass 40 and compare with the theoretical result obtained in (b)
+
+```{r Emma}
+# estimate the mean
+nrep = 10001
+count = 0
+classes = 40
+
+# Case 1
+for(i in 1:nrep) {
+  x = sample(c("P","P","P","P","P","P","P","P","P","F"),1)
+  if (x == "P") count = count + 1
+}
+print(paste("Simulated number of classes:",classes/(count/nrep)))
+```
+
+### Problem 4
+Consider the Weibull distribution as parameterized in the SIMAN textbook with probability distribution function: \
+$$
+f(x) = \alpha \beta ^ {-\alpha} x ^ {\alpha - 1} e ^ {{-x/\beta}^\alpha} \\
+x >0 \,,\, \alpha >0 \,,\, \beta > 0 
+$$
+(a) Find the CDF (solve uing two u-substitutions)
+$$
+F(X)  = \alpha \beta^{-\alpha} \int_0^\infty x^{\alpha-1}\,e ^ {{-x/\beta}^\alpha}\\
+F(X)  = 1 - e^{{-\left(\frac{x}{\beta}\right)}^\alpha}
+$$
+
+
+(b)	Write an R program that generates the random variable X using the inverse-cdf technique and estimates $E[X]$ and $V[X]$ using 1000 variates. (Use $\alpha = 3$ and $\beta = 2$)
+```{r inverseWeibullCDF, include=FALSE, echo=FALSE}
+library(GoFKernel)
+
+#CDF Function
+weibInvCDF <- function(y,a,b) {
+   if (length(y) > 1) {
+     Xs <- c()
+     for (i in 1:length(y)) {
+       Xs[i] <- -(b/a)*((log(1-y[i])))
+     }
+     return(Xs)
+   }
+   else {
+     X <- -b*((log(1-y))^(1/a))
+     return(X)
+   }
+}
+
+weibullSummary <- function(nrep,a,b) {
+  probs <- runif(nrep)
+  X <- weibInvCDF(probs,a,b)
+  variates <- X[sample(1:nrep,10)]
+  mu = c(mean(X),rep(0,9))
+  var = c(var(X),rep(0,9))
+  sum = matrix(c(variates,mu,var),nrow=10,ncol=3)
+  colnames(sum) <- c("X (random 10)","mu","var")
+  return(sum)
+}
+
+
+a = 3 # alpha
+b = 2 # beta
+
+weibullSummary(1000,a,b)
+```
+```{r}
+library(GoFKernel)
+# testing
+a = 3 # alpha
+b = 2 # beta
+
+weibullSum <- function(nrep,a,b){
+  X <- rweibull(nrep,a,b)
+  variates <- X[sample(1:nrep,10)]
+  mu = c(mean(X),rep(0,9))
+  var = c(var(X),rep(0,9))
+  sum = matrix(c(variates,mu,var),nrow=10,ncol=3)
+  colnames(sum) <- c("X (head)","E[X]","V[X]")
+  return(sum)
+}
+
+weibullSum(1000,a,b)
+```
+
+### Problem 5
+(a) Using any language, build a simulation to compute the area of the non-negative curve: $y = \ln (x^2)$ from $1 < x < 3$.
+```{r lnArea}
+# setting plot up
+plot(0:4,0:4,type="n",
+     xlab = "x-axis",
+     ylab = "y-axis")
+
+title("Area of the line y = ln(x^2)")
+t = seq(0,6,by=.01)
+z = log(t^2) #line
+
+lines(t,z)
+lines(c(rep(3,4)),log((0:3)^2),
+      type = 'l',
+      lty = 'dashed',
+      col = 'red',
+      cex = 3)
+
+nrep = 10001
+count = 0
+cout = 0
+xPoints <- runif(nrep,0,4)
+yPoints <- runif(nrep,0,4)
+for (i in 1:nrep){
+  if(xPoints[i] >= 1 
+     & xPoints[i] <= 3
+     & yPoints[i] > 0 
+     & yPoints[i] <= log((xPoints[i])^2)) {
+       count = count + 1
+       points(xPoints[i],yPoints[i],
+              type = 'p',
+              pch = 16,
+              col = 'blue',
+              cex = .5)
+  }
+  else {points(xPoints[i],yPoints[i],
+              type = 'p',
+              pch = 16,
+              col = 'lightgrey',
+              cex = .5)
+    cout=cout+1}
+  
+}
+area = (count/nrep)*16
+legend("topleft", inset = .1, title = "Points Under Curve",
+       legend=c(
+         paste("Point In (",count,")",sep=""), 
+         paste("Point Out (",cout,")",sep="")),
+       col=c("blue", "lightgrey"), pch=16, cex=0.5)
+text(3.5,1,paste("AREA:",round(area,2)),pos=3)
+
+```
+
+(b) Find the volume of a sphere
+```{r vol}
+#f = (1/2)*x^2+(1/4)*y^2+(1/8)*z^2
+
+volume <- function(nrep,b) {
+  x = runif(nrep,0,b)
+  y = runif(nrep,0,b)
+  z = runif(nrep,0,b)
+  count = 0
+  for (i in 1:nrep){
+    if( (1/2)*x[i]^2+(1/4)*y[i]^2+(1/8)*z[i]^2 <= 16) count = count + 1}
+  return((count/nrep)*((b)^3))}
+
+print(paste("1000 Trials:",volume(1000,15)))
+print(paste("100000 Trials:",volume(100000,15)))
+```
